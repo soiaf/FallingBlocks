@@ -1,0 +1,35 @@
+////////////////////////////////////////////////////////////////////////////
+//                            Falling Blocks                              //
+//                    Copyright (c)2015 Peter McQuillan                   //
+//                          All Rights Reserved.                          //
+//      Distributed under the BSD Software License (see license.txt)      //
+////////////////////////////////////////////////////////////////////////////
+
+This package contains the source code for the game 'Falling Blocks'.
+This game is written in z80 assembly for the ZX Spectrum.
+This is my first piece of z80 assembly coding!
+
+The code has been successfully assembled and tested on both ZX Spin and Pasmo.
+Using Pasmo allows you to produce a TAP file which can be read by most Spectrum
+emulators or can even be used to produce a WAV file or tape copy of the game.
+
+There is a TAP file included in the package that can be used on an emulator,
+including online Javascript emulators like  http://jsspeccy.zxdemo.org/
+
+The game itself is based on the classic Tetris, but with a few twists on the 
+game and some extra features that are not commonly available like ghost (where
+you can see where your piece would go if you dropped it) and save (where you 
+can swap a piece in play for later usage).
+
+It is possible to define your own keys for use in the game, but the default 
+keys are as follows:
+
+O		-	move left
+P		-	move right
+Space	-	rotate piece
+D 		-	Drop piece
+G		-	enable/disable ghost mode
+S		-	Swap/Save a piece for later usage
+
+
+Please direct any questions or comments to beatofthedrum@gmail.com

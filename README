@@ -26,7 +26,7 @@ keys are as follows:
 
 O		-	move left
 P		-	move right
-Space	-	rotate piece
+Space		-	rotate piece
 D 		-	Drop piece
 G		-	enable/disable ghost mode
 S		-	Swap/Save a piece for later usage

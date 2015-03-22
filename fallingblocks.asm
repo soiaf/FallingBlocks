@@ -295,6 +295,10 @@ ghostactive	defb	0
 
 kemsptonactivated	defb	0
 
+; this holds the difficulty level, 0 is normal, 1 is hard
+
+difficulty	defb	0
+
 ; timer used when deciding to auto drop the block
 pretim defb 0
 
@@ -310,9 +314,12 @@ msg_menu_copyright:		defm CC_INK,7,CC_AT,13,4,"(c)2015 Peter McQuillan",255
 msg_menu_startgame: 	defm CC_INK,7,CC_AT,18,4,"1 Start Game",255
 msg_menu_definekeys: 	defm CC_INK,7,CC_AT,19,4,"2 Define Keys",255
 msg_menu_kempston: 	defm CC_INK,7,CC_AT,20,4,"3 Kempston Joystick",255
+msg_menu_difficulty:	defm CC_INK,7,CC_AT,21,4,"4 Difficulty",255
 msg_menu_kempston_on:	defm CC_INK,4,CC_AT,20,23,"(On) ",255
 msg_menu_kempston_off:	defm CC_INK,2,CC_AT,20,23,"(Off)",255
 msg_menu_kempston_na:	defm CC_INK,2,CC_AT,20,23,"(n/a)",255	; we detect if a kempston joystick is present, if not show this
+msg_menu_difficulty_normal:	defm CC_INK,4,CC_AT,21,16,"(Normal) ",255
+msg_menu_difficulty_hard:	defm CC_INK,2,CC_AT,21,16,"(Hard)   ",255
 
 msg_game_score:		defm CC_INK,7,CC_AT,2,25,"Score",255
 msg_game_highscore:	defm CC_INK,7,CC_AT,2,3,"High",255
@@ -439,6 +446,22 @@ mainmenu
 	ld hl, msg_menu_kempston
 	call print_message
 	
+	ld hl,msg_menu_difficulty
+	call print_message
+	
+	ld a,(difficulty)
+	cp 0
+	jr nz,mm12	; 0 is normal difficulty
+	
+	ld hl,msg_menu_difficulty_normal
+	call print_message
+	jr mm11
+
+mm12	
+	ld hl,msg_menu_difficulty_hard
+	call print_message
+	
+mm11	
 	ld a,(kemsptonactivated)
 	cp 0
 	jr z,mm6
@@ -497,6 +520,30 @@ mm10
 	xor a	; empty instruction here, does nothing
 	
 mm7	
+	bit 3,a		; check for keypress of number 4
+	jr nz,mm13
+	
+	ld a,(difficulty)
+	cp 0
+	jr nz,mm14
+	
+	; difficulty is currently 0 (normal), set to 1
+	ld a,1
+	ld (difficulty),a
+	ld hl,msg_menu_difficulty_hard
+	call print_message
+	call mediumdelay
+	jr mm13	
+mm14
+	; difficulty is currently 1 (hard), set to 0
+	xor a
+	ld (difficulty),a
+	ld hl,msg_menu_difficulty_normal
+	call print_message
+	call mediumdelay
+	jr mm13		
+
+mm13	
 	jr mm1
 mm5
 	call 3503
@@ -775,16 +822,29 @@ jc9
 	call smalldelay
 	
 l9   
+	ld a,(difficulty)
+	cp 0
+	jr nz,l14
+
 	ld hl,pretim        ; previous time setting
 	ld a,(23672)        ; current timer setting.
 	sub (hl)            ; difference between the two.
 	cp 45                ; have 45 frames elapsed yet?
-	jr nc,L13
+	jr nc,l13
+	jr l15
+l14	
+	; difficulty hard
+	ld hl,pretim        ; previous time setting
+	ld a,(23672)        ; current timer setting.
+	sub (hl)            ; difference between the two.
+	cp 15                ; have 15 frames elapsed yet?
+	jr nc,l13
+	jr l15	
 	
-	
+l15	
 	jp L7		;not time to drop piece yet, continue main loop
 	
-L13
+l13
 	ld hl,pretim
 	ld a,(23672) 
 	ld (hl),a 

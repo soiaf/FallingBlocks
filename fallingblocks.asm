@@ -506,7 +506,7 @@ mm3
 	ld hl, msg_menu_kempston_off
 	call print_message
 	call mediumdelay
-	jp mm7
+	jp mm13
 mm8	
 	; if here then currently support disabled, so enable
 	ld a,1
@@ -514,10 +514,10 @@ mm8
 	ld hl, msg_menu_kempston_on
 	call print_message
 	call mediumdelay
-	jr mm7
+	jr mm13
 mm10
-	; if we are set to n/a for kempston we ignore inputs
-	xor a	; empty instruction here, does nothing
+	; if we are set to n/a for kempston we ignore '3' keypresses
+	jr mm13
 	
 mm7	
 	bit 3,a		; check for keypress of number 4

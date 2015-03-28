@@ -11,7 +11,18 @@
 
 
 org 24576
-	ei	; we want interrupts enabled
+	; set up our own routines. Two elements, a table that points to where the interrupt code is
+	; held and the actual interrupt code itself. Due to the strange way interrupts work on spectrum
+	; our table is a series of the value 200. The idea is that an interrupt call would randomly jump
+	; to somewhere in this table and read the values 200 (2 reads) 0 this gives a memory location of
+	; (200*256) + 200 = 51400, which is where we will put our actual interrupt routine
+	; We put our table out of the way, starting at 65024 (which is 256 * 254)
+	
+	di					; we are setting up out own interrupt routine, disable while doing this
+	ld a,254			; high byte of pointer table location (256 * 254 gives 65024).
+	ld i,a				; set high byte.
+	im 2				; select interrupt mode 2.
+	ei					; enable interrupts.
 	jp START
 
 graphics 
@@ -264,7 +275,7 @@ winninglinecolour	defb	130	; flashing red
 score  defb '000000'
 
 ; holds the high score
-highscore	defb	'000500'
+highscore	defb	'001250'
 
 ; shows whether a new high score has been set
 newhighscore defb	0
@@ -4314,9 +4325,75 @@ chs1
 	ld hl,score
 	ld bc,6
 	ldir
+	
+	ret
 
 	
-ret	
+org 51400	; location of our interrupt routine
+
+Interrupt    
+	di				; disable interrupts
+	push af             ; preserve registers.
+	push bc
+	push hl
+	push de
+	push ix
+	
+	; here is where we put the calls to the routines we want to execute during interrupts
+	; e.g. play music etc.
+	; we increment the frames counter as this is used to determine the rate of drop of the 
+	; main game piece
+
+	ld hl,23672         ; frames counter.
+	inc (hl)            ; move it along.
+	
+	; end of our routines
+	   
+	pop ix              ; restore registers.
+	pop de
+	pop hl
+	pop bc
+	pop af
+	ei                  ; always re-enable interrupts before returning.
+	reti                ; done (return from interrupt)
+
+org 65024
+
+	; pointers to interrupt routine.
+	; 257 instances of '200'
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200,200,200,200,200,200,200,200
+	defb 200	
 	
 end 24576	; assembler directive, says this is the end of the code and where the entry point is
 

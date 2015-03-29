@@ -47,6 +47,8 @@ port_array:		defb $7f ; B-SPACE
 			defb $fd ; A-G
 			defb $fe ; CAPS-V
 
+key_music_port:		defb $7f
+key_music_pattern:	defb 4
 key_left_port: 		defb $df
 key_left_pattern: 	defb 2
 key_right_port: 	defb $df
@@ -62,6 +64,7 @@ key_ghost_pattern:	defb 16
 key_swap_port:		defb $fd
 key_swap_pattern:	defb 2
 
+
 ROM_CLS:		EQU 3435
 CHAN_OPEN:		EQU 5633
 CC_INK:			EQU 16
@@ -75,6 +78,7 @@ msg_clockwise: 		defm CC_INK,4,CC_AT,10,8,"Clockwise ?",255
 msg_drop: 		defm CC_INK,4,CC_AT,11,8,"Drop ?",255
 msg_ghost: 		defm CC_INK,4,CC_AT,12,8,"Ghost ?",255
 msg_swap:		defm CC_INK,4,CC_AT,13,8,"Swap/Save ?",255
+msg_music:		defm CC_INK,4,CC_AT,14,8,"Music On/Off ?",255
 msg_define:		defm CC_INK,4,CC_AT,1,7,"Press key for ...",255	
 
 msg_gameover_score: 	defm CC_INK,7,CC_AT,17,10,"Your score",255
@@ -313,12 +317,20 @@ difficulty	defb	0
 ; timer used when deciding to auto drop the block
 pretim defb 0
 
+; this shows if we are in-game or not. Used to determine whether to play the in-game music
+; or not, 1 means we are currently in-game
+
+ingame	defb	0
+
+; this holds whether in game music is wanted/enabled (by the player)
+ingamemusicenabled	defb	1
+
 randomtable:
     db   82,97,120,111,102,116,20,12
 	
 ; holds a value for last action/key pressed. 
 ; 0 means no key, 1 means clockwise, 2 anticlockwise
-; 3 left, 4 right, 5 ghost, 7 drop
+; 3 left, 4 right, 5 ghost, 7 drop, 9 music
 lastkeypressed	defb	0
 
 msg_menu_copyright:		defm CC_INK,7,CC_AT,13,4,"(c)2015 Peter McQuillan",255
@@ -607,7 +619,7 @@ L7
 
 	;check key pressed
 	call get_keys
-	;The bits in A after checking keys are as follows:  A = 0lracdgs
+	;The bits in A after checking keys are as follows:  A = mlracdgs
 	
 main1	
 	cp 0
@@ -720,7 +732,7 @@ main3
 	pop af
 l6	
 	bit 2,a
-	jr z,joycon
+	jr z,main10
 	push af
 	ld a,(lastkeypressed)
 	cp 7
@@ -730,9 +742,26 @@ l6
 	ld (lastkeypressed),a
 	call smalldelay	
 	pop af
-	jr joycon
+	jr main10
 main8
 	pop af
+
+main10
+	bit 7,a
+	jr z,joycon
+	push af
+	ld a,(lastkeypressed)
+	cp 9
+	jr z,main11
+	call switchmusiconoff
+	ld a,9
+	ld (lastkeypressed),a
+	call smalldelay
+	pop af
+	jr joycon
+main11
+	pop af
+
 	
 	; in addition to key support, we also support Kempston joystick. On zxspin the emulator uses
 	; the cursor keys with CTRL (for fire)
@@ -2795,8 +2824,8 @@ atadd
 ; redefine keys routine written by John Young
 get_keys:		
 	ld de,0			; DE will hold the bits for the keys pressed
-	ld hl,key_left_port	; address of the ports/patterns
-	ld b,7			; 7 keys to check
+	ld hl,key_music_port	; address of the ports/patterns
+	ld b,8			; 8 keys to check
 	res 0,d
 	dec hl
 gk_loop:		
@@ -2865,9 +2894,14 @@ do_the_redefine:
 	call print_message
 	ld hl,key_swap_port
 	call get_defined_key	
+	
+	ld hl,msg_music
+	call print_message
+	ld hl,key_music_port
+	call get_defined_key	
 
 	; ok, keys should have been saved, (/me hopes)
-	ld bc,key_left_port			; return the keys data to calling program
+	ld bc,key_music_port			; return the keys data to calling program
 	ret			
 
 ; ----------------------------------------------
@@ -2999,6 +3033,10 @@ phs1
 	ret		
 	
 gameover
+	; first switch off in-game music
+	xor a
+	ld (ingame),a
+	
 	call ROM_CLS		; do the clear screen
 
 	;open the upper screen for printing (channel 2)
@@ -3049,6 +3087,10 @@ go2
 	
 ; screen that gets called when you win	
 youwin
+	; first switch off in-game music
+	xor a
+	ld (ingame),a
+
 	call ROM_CLS		; do the clear screen
 
 	;open the upper screen for printing (channel 2)
@@ -3637,6 +3679,14 @@ ds10
 	ld (blockcolour),a	; now draw block in new position
 
 	call showcurrentshape
+	
+	; final action of setup, set ingame to 1 so music will play (if enabled by player)
+	ld a,1
+	ld (ingame),a
+	xor a
+	ld (noteindex),a	; so music plays at start of song
+	
+	
 	ret
 	
 ; level 6 is called the letter F. We draw a letter F on-screen
@@ -3831,6 +3881,10 @@ sul4
 	
 ; this setups the variables for a new level and draws the screen
 newlevel
+	; switch off in-game music (will be re-activated later after new screen drawn)
+	xor a
+	ld (ingame),a
+	
 	call setuplevel
 	call drawscreen
 	
@@ -4327,6 +4381,105 @@ chs1
 	ldir
 	
 	ret
+	
+	; this allows the player to switch the music on off
+switchmusiconoff	
+	ld a,(ingamemusicenabled)
+	cp 0
+	jr nz,smo1
+	; if here then music is currently on, switch off
+	ld a,1
+	ld (ingamemusicenabled),a
+	ret
+smo1
+	; if here then music is currently on, we switch off
+	xor a
+	ld (ingamemusicenabled),a
+	ret
+
+	
+; the in-game music section	
+org 40000
+
+	; music is 'Fur Elise', use cp value of 12 in playmusic
+;ingamemusic
+;	defb 30,32,30,32,30,40,34,38
+;	defb 45,45,45,76,61,45,40,40
+;	defb 96,61,48,40,38,38,38,61
+;	defb 30,32,30,32,30,40,34,38
+;	defb 45,45,45,76,61,45,40,40
+;	defb 96,61,38,40,48,48,48,255
+
+
+	;alternative music 'In the Hall of the Mountain King'
+	;set cp value to 8 in playmusic to use
+ingamemusic
+	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,102,86,86  
+	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,86,86,86  
+	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,102,86,86  
+	defb 128,114,102,96,86,102,86,64,86,102,128,102,86,86,86,86,255 
+
+noteindex	defb	0
+musicpauseindex		defb	0
+
+
+playmusic
+	ld a,(ingame)
+	cp 0
+	ret z
+	
+	; now see if player wants music
+	ld a,(ingamemusicenabled)
+	cp 0
+	ret z
+	
+	ld a,(musicpauseindex)
+	inc a
+	ld (musicpauseindex),a
+	cp 8
+	jr nc,pm1
+	ret
+pm1
+	xor a
+	ld (musicpauseindex),a
+	jp playnote
+	
+
+	; this music routine adapted from manic miner code
+playnote
+	ld a,(noteindex)	
+	ld e,a
+	ld d,0
+	ld hl,ingamemusic
+	add hl,de
+	ld a,(hl)
+	cp 255
+	jr z,pn3
+	; not end of song, increase index
+	ld a,(noteindex)
+	inc a
+	ld (noteindex),a
+	jr pn4
+pn3	
+	xor a
+	ld (noteindex),a
+	jr playnote
+pn4	
+	xor a	; set border colour to 0
+	ld e,(hl)
+	ld bc,3
+pn1	
+	out (254),a
+	dec e
+	jr nz,pn2
+	ld e,(hl)
+	xor 24
+pn2	
+	djnz pn1
+	dec c
+	jr nz,pn1
+	ret
+	
 
 	
 org 51400	; location of our interrupt routine
@@ -4346,6 +4499,8 @@ Interrupt
 
 	ld hl,23672         ; frames counter.
 	inc (hl)            ; move it along.
+	
+	call playmusic
 	
 	; end of our routines
 	   

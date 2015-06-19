@@ -317,13 +317,8 @@ difficulty	defb	0
 ; timer used when deciding to auto drop the block
 pretim defb 0
 
-; this shows if we are in-game or not. Used to determine whether to play the in-game music
-; or not, 1 means we are currently in-game
-
-ingame	defb	0
-
 ; this holds whether in game music is wanted/enabled (by the player)
-ingamemusicenabled	defb	1
+gamemusicenabled	defb	1
 
 randomtable:
     db   82,97,120,111,102,116,20,12
@@ -431,6 +426,15 @@ BEGIN
 	;open the upper screen for printing (channel 2)
 	ld a,2
 	call 5633
+	
+	; set the main menu music to be 'If I Were A Rich Man'
+	ld bc,ifiwerearichman
+	ld (gamemusic),bc
+	ld a, 8
+	ld (musicspeed),a
+	xor a
+	ld (noteindex),a	; so music plays at start of song
+		
 		
 	; before we start the main menu we need to see if a kempston joystick is 
 	; actually there. Otherwise you can have a situation where the user enables
@@ -3033,9 +3037,14 @@ phs1
 	ret		
 	
 gameover
-	; first switch off in-game music
+
+	; switch the music to heart and soul
+	ld bc,heartandsoul
+	ld (gamemusic),bc
+	ld a, 11
+	ld (musicspeed),a
 	xor a
-	ld (ingame),a
+	ld (noteindex),a	; so music plays at start of song
 	
 	call ROM_CLS		; do the clear screen
 
@@ -3087,9 +3096,13 @@ go2
 	
 ; screen that gets called when you win	
 youwin
-	; first switch off in-game music
+	; change music to you win music
+	ld bc,youwinmusic
+	ld (gamemusic),bc
+	ld a, 10
+	ld (musicspeed),a
 	xor a
-	ld (ingame),a
+	ld (noteindex),a	; so music plays at start of song
 
 	call ROM_CLS		; do the clear screen
 
@@ -3680,9 +3693,12 @@ ds10
 
 	call showcurrentshape
 	
-	; final action of setup, set ingame to 1 so music will play (if enabled by player)
-	ld a,1
-	ld (ingame),a
+	; final action of setup, set music to 'Hall of the Mountain King'
+
+	ld bc,hallofthemountainking
+	ld (gamemusic),bc
+	ld a, 6
+	ld (musicspeed),a
 	xor a
 	ld (noteindex),a	; so music plays at start of song
 	
@@ -3881,9 +3897,11 @@ sul4
 	
 ; this setups the variables for a new level and draws the screen
 newlevel
-	; switch off in-game music (will be re-activated later after new screen drawn)
+	; switch off in-game music, music set to silent (will be re-activated later after new screen drawn)
+	ld bc,silentmusic
+	ld (gamemusic),bc
 	xor a
-	ld (ingame),a
+	ld (noteindex),a	; so (silent) music plays at start of song
 	
 	call setuplevel
 	call drawscreen
@@ -4384,44 +4402,29 @@ chs1
 	
 	; this allows the player to switch the music on off
 switchmusiconoff	
-	ld a,(ingamemusicenabled)
+	ld a,(gamemusicenabled)
 	cp 0
 	jr nz,smo1
 	; if here then music is currently on, switch off
 	ld a,1
-	ld (ingamemusicenabled),a
+	ld (gamemusicenabled),a
 	ret
 smo1
 	; if here then music is currently on, we switch off
 	xor a
-	ld (ingamemusicenabled),a
+	ld (gamemusicenabled),a
 	ret
 
 	
 ; the in-game music section	
 org 40000
 
-	; music is 'Fur Elise', use cp value of 12 in playmusic
-;ingamemusic
-;	defb 30,32,30,32,30,40,34,38
-;	defb 45,45,45,76,61,45,40,40
-;	defb 96,61,48,40,38,38,38,61
-;	defb 30,32,30,32,30,40,34,38
-;	defb 45,45,45,76,61,45,40,40
-;	defb 96,61,38,40,48,48,48,255
-
-
-	;music 'In the Hall of the Mountain King' from Manic Miner
-	;set cp value to 8 in playmusic to use
-;ingamemusic
-;	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,102,86,86  
-;	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,86,86,86  
-;	defb 128,114,102,96,86,102,86,86,81,96,81,81,86,102,86,86  
-;	defb 128,114,102,96,86,102,86,64,86,102,128,102,86,86,86,86,255
+gamemusic defb	0,0
+musicspeed	defb	6
 
 	;alternative version 'In the Hall of the Mountain King'
-	;set cp value to 6 in playmusic to use
-ingamemusic
+	;set musicspeed value to 6 to use
+hallofthemountainking
 	defb 48,48,43,43,40,40,36,36,32,32,40,40,32,32
 	defb 32,32
 	defb 34,34,43,43,34,34,34,34,36,36,45,45,36,36,36,36
@@ -4436,44 +4439,58 @@ ingamemusic
 	defb 86,86,86,86,255
 
 
-	; music for the game tetris
+	; music played when you win
 	;set cp value to 10 in playmusic to use
-;ingamemusic
-;	defb 18,24,23,20,23,24,27,27
-;	defb 23,18,20,23,24,23,20,18
-;	defb 23,27,27,27,24,23,20,17
-;	defb 13,15,17,18,23,18,20,23
-;	defb 24,24,23,20,18,23,27,27
-;	defb 1,18,23,20,24,23,27,28
-;	defb 24,1,18,23,20,24,23,18
-;	defb 13,14,255
+youwinmusic
+	defb 18,24,23,20,23,24,27,27
+	defb 23,18,20,23,24,23,20,18
+	defb 23,27,27,27,24,23,20,17
+	defb 13,15,17,18,23,18,20,23
+	defb 24,24,23,20,18,23,27,27
+	defb 1,18,23,20,24,23,27,28
+	defb 24,1,18,23,20,24,23,18
+	defb 13,14,255
 
 	; 'If I were a rich man' from Jet Set Willy
-;ingamemusic
-;	defb 86,96,86,96,102,102,128,128,128,128,102,96,86,96,86,96  
-;	defb 102,96,86,76,72,76,72,76,86,86,86,86,86,86,86,86  
-;	defb 64,64,64,64,68,68,76,76,86,96,102,96,86,86,102,102  
-;	defb 81,86,96,86,81,81,96,96,64,64,64,64,64,64,64,64,255
+ifiwerearichman
+	defb 86,96,86,96,102,102,128,128,128,128,102,96,86,96,86,96  
+	defb 102,96,86,76,72,76,72,76,86,86,86,86,86,86,86,86  
+	defb 64,64,64,64,68,68,76,76,86,96,102,96,86,86,102,102  
+	defb 81,86,96,86,81,81,96,96,64,64,64,64,64,64,64,64,255
 
+; heart and soul, speed 11
+heartandsoul
+	defb 91,91,91,0,91,96,108,96
+	defb 91,81,0,72,72,72,0,72
+	defb 81,91,81,72,68,0,61,0
+	defb 91,0,54,61,68,72,81,72
+	defb 81,91,0,0,255
+	
+; silent music
+silentmusic
+	defb 0,0,0,255
 	
 noteindex	defb	0
 musicpauseindex		defb	0
 
 
 playmusic
-	ld a,(ingame)
+
+	; now see if player wants music
+	ld a,(gamemusicenabled)
 	cp 0
 	ret z
 	
-	; now see if player wants music
-	ld a,(ingamemusicenabled)
-	cp 0
-	ret z
+	; we do not play a not every interrupt call. This piece of code allows us
+	; to play a note every X (musicspeed) interrupts
+	
+	ld a,(musicspeed)
+	ld d,a
 	
 	ld a,(musicpauseindex)
 	inc a
 	ld (musicpauseindex),a
-	cp 6
+	cp d
 	jr nc,pm1
 	ret
 pm1
@@ -4483,15 +4500,19 @@ pm1
 	
 
 	; this music routine adapted from manic miner code
+	; 255 means end of music data, back to beginning of music data
+	; 0 is a pause, don't play anything
 playnote
 	ld a,(noteindex)	
 	ld e,a
 	ld d,0
-	ld hl,ingamemusic
+	ld hl,(gamemusic)
 	add hl,de
 	ld a,(hl)
-	cp 255
+	cp 255	; end of song
 	jr z,pn3
+	cp 0	; pause/silence
+	jr z,pn6
 	; not end of song, increase index
 	ld a,(noteindex)
 	inc a
@@ -4515,6 +4536,13 @@ pn2
 	djnz pn1
 	dec c
 	jr nz,pn1
+	ret
+	
+; pause routine (0 in music data), increases index, but does not play sound
+pn6
+	ld a,(noteindex)
+	inc a
+	ld (noteindex),a
 	ret
 	
 

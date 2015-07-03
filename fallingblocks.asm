@@ -320,6 +320,15 @@ pretim defb 0
 ; this holds whether in game music is wanted/enabled (by the player)
 gamemusicenabled	defb	1
 
+; drop method. When set to 0 if the player presses drop then the piece drops in one go as
+; far as it can. If set to 1 then the piece only goes down while the player holds the key
+; when set to 1 acts like a 'down' key rather than a drop
+dropmethod	defb	0
+
+; this holds the key press sensitivity, essentially this is the delay between keypress repeat
+; 0 is fast, 1 is normal, 2 is slow
+sensitivity	defb	0
+
 randomtable:
     db   82,97,120,111,102,116,20,12
 	
@@ -332,12 +341,23 @@ msg_menu_copyright:		defm CC_INK,7,CC_AT,13,4,"(c)2015 Peter McQuillan",255
 msg_menu_startgame: 	defm CC_INK,7,CC_AT,18,4,"1 Start Game",255
 msg_menu_definekeys: 	defm CC_INK,7,CC_AT,19,4,"2 Define Keys",255
 msg_menu_kempston: 	defm CC_INK,7,CC_AT,20,4,"3 Kempston Joystick",255
-msg_menu_difficulty:	defm CC_INK,7,CC_AT,21,4,"4 Difficulty",255
+msg_menu_settings:	defm CC_INK,7,CC_AT,21,4,"4 Settings",255
 msg_menu_kempston_on:	defm CC_INK,4,CC_AT,20,23,"(On) ",255
 msg_menu_kempston_off:	defm CC_INK,2,CC_AT,20,23,"(Off)",255
 msg_menu_kempston_na:	defm CC_INK,2,CC_AT,20,23,"(n/a)",255	; we detect if a kempston joystick is present, if not show this
-msg_menu_difficulty_normal:	defm CC_INK,4,CC_AT,21,16,"(Normal) ",255
-msg_menu_difficulty_hard:	defm CC_INK,2,CC_AT,21,16,"(Hard)   ",255
+
+;settings menu text
+msg_menu_difficulty:	defm CC_INK,7,CC_AT,10,4,"1 Difficulty",255
+msg_menu_difficulty_normal:	defm CC_INK,4,CC_AT,10,16,"(Normal) ",255
+msg_menu_difficulty_hard:	defm CC_INK,2,CC_AT,10,16,"(Hard)   ",255
+msg_menu_dropmethod:	defm CC_INK,7,CC_AT,11,4,"2 Drop Method",255
+msg_menu_dropmethod_normal:		defm CC_INK,4,CC_AT,11,17,"(Full)      ",255
+msg_menu_dropmethod_likedown:	defm CC_INK,2,CC_AT,11,17,"(While Held)",255
+msg_menu_sensitivity:	defm CC_INK,7,CC_AT,12,4,"3 Control Response",255
+msg_menu_sensitivity_fast:		defm CC_INK,4,CC_AT,12,22,"(Fast)  ",255
+msg_menu_sensitivity_normal:	defm CC_INK,6,CC_AT,12,22,"(Normal)",255
+msg_menu_sensitivity_slow:		defm CC_INK,2,CC_AT,12,22,"(Slow)  ",255
+msg_menu_back_to_main_menu:	defm CC_INK,7,CC_AT,13,4,"4 Back To Main Menu",255
 
 msg_game_score:		defm CC_INK,7,CC_AT,2,25,"Score",255
 msg_game_highscore:	defm CC_INK,7,CC_AT,2,3,"High",255
@@ -473,19 +493,7 @@ mainmenu
 	ld hl, msg_menu_kempston
 	call print_message
 	
-	ld hl,msg_menu_difficulty
-	call print_message
-	
-	ld a,(difficulty)
-	cp 0
-	jr nz,mm12	; 0 is normal difficulty
-	
-	ld hl,msg_menu_difficulty_normal
-	call print_message
-	jr mm11
-
-mm12	
-	ld hl,msg_menu_difficulty_hard
+	ld hl,msg_menu_settings
 	call print_message
 	
 mm11	
@@ -550,9 +558,101 @@ mm7
 	bit 3,a		; check for keypress of number 4
 	jr nz,mm13
 	
+	call settingsmenu
+	jp BEGIN	; need to reset everything after accessing settings menu
+
+mm13	
+	jr mm1
+mm5
+	call 3503
+	jp maingame
+	
+settingsmenu
+	; settings menu is where difficulty level can be chosen and where the behaviour of the pieces can be altered
+
+	call ROM_CLS
+	
+	ld hl,msg_menu_difficulty
+	call print_message
+	
 	ld a,(difficulty)
 	cp 0
-	jr nz,mm14
+	jr nz,setm1	; 0 is normal difficulty
+	
+	ld hl,msg_menu_difficulty_normal
+	call print_message
+	jr setm5
+
+setm1	
+	ld hl,msg_menu_difficulty_hard
+	call print_message	
+	
+setm5	
+	ld hl,msg_menu_dropmethod
+	call print_message
+	
+	ld a,(dropmethod)
+	cp 0
+	jr nz,setm6	; 0 is normal drop method
+
+	ld hl,msg_menu_dropmethod_normal
+	call print_message
+	jr setm2
+	
+setm6	
+	ld hl,msg_menu_dropmethod_likedown
+	call print_message	
+		
+setm2
+	ld hl,msg_menu_sensitivity
+	call print_message
+	
+	ld a,(sensitivity)
+	cp 0
+	jr z,setm10
+	cp 1
+	jr z,setm11
+	cp 2
+	jr z,setm12
+	
+	jr	setm13	; this line should not be called, here just in case!
+	
+setm10
+	; sensitivity is 0, fast
+	ld hl, msg_menu_sensitivity_fast
+	call print_message
+	jr setm13
+	
+setm11
+	; sensitivity is 1, normal
+	ld hl, msg_menu_sensitivity_normal
+	call print_message
+	jr setm13
+	
+setm12
+	; sensitivity is 2, slow
+	ld hl, msg_menu_sensitivity_slow
+	call print_message
+	jr setm13
+		
+setm13
+	; print the back to main menu message
+	ld hl, msg_menu_back_to_main_menu
+	call print_message
+	
+	call mediumdelay
+
+setm9
+	;IN 63486 reads the half row 1 to 5
+	ld bc,63486
+	in a,(c)
+
+	bit 0,a		; check for keypress of number 1 - difficulty
+	jr nz,setm4
+	
+	ld a,(difficulty)
+	cp 0
+	jr nz,setm3
 	
 	; difficulty is currently 0 (normal), set to 1
 	ld a,1
@@ -560,21 +660,90 @@ mm7
 	ld hl,msg_menu_difficulty_hard
 	call print_message
 	call mediumdelay
-	jr mm13	
-mm14
+	jp setm19	
+setm3
 	; difficulty is currently 1 (hard), set to 0
 	xor a
 	ld (difficulty),a
 	ld hl,msg_menu_difficulty_normal
 	call print_message
 	call mediumdelay
-	jr mm13		
+	jr setm19		
 
-mm13	
-	jr mm1
-mm5
-	call 3503
+setm4
+	bit 1,a		; check for keypress of number 2 - drop method
+	jr nz,setm7
+	
+	ld a,(dropmethod)
+	cp 0
+	jr nz,setm8
+	
+	; drop method is currently 0 (normal), set to 1
+	ld a,1
+	ld (dropmethod),a
+	ld hl,msg_menu_dropmethod_likedown
+	call print_message
+	call mediumdelay
+	jr setm19	
+setm8
+	; drop method is currently 1 (like down key), set to 0
+	xor a
+	ld (dropmethod),a
+	ld hl,msg_menu_dropmethod_normal
+	call print_message
+	call mediumdelay
+	jr setm19	
 
+setm7	
+	bit 2,a		; check for keypress of number 3 - key sensitivity
+	jr nz,setm18
+
+	ld a,(sensitivity)
+	cp 0
+	jr z, setm14
+	cp 1
+	jr z, setm15
+	cp 2
+	jr z, setm16
+	
+	jr setm19	; this line should not be called
+	
+setm14
+	; sensitivity is 0, set to 1
+	ld a,1
+	ld (sensitivity),a
+	ld hl, msg_menu_sensitivity_normal
+	call print_message
+	call mediumdelay
+	jr setm19
+	
+setm15
+	; sensitivity is 1, set to 2
+	ld a,2
+	ld (sensitivity),a
+	ld hl, msg_menu_sensitivity_slow
+	call print_message
+	call mediumdelay
+	jr setm19
+
+setm16
+	; sensitivity is 2, set to 0
+	xor a
+	ld (sensitivity),a
+	ld hl, msg_menu_sensitivity_fast
+	call print_message
+	call mediumdelay
+	jr setm19	
+	
+setm18
+	bit 3,a		; check for keypress of number 4 - back to main menu
+	jr nz,setm19
+
+	ret		; back to main menu
+	
+setm19
+	jp setm2
+	
 maingame
 	
 	;seed our random number generator
@@ -748,8 +917,20 @@ l6
 	pop af
 	jr main10
 main8
+	; if last key was drop, and our drop method is one square/down we do not drop down on square, 
+	; but we change last key to 14
+	; effectively this means that down move can be made on next call, so we have
+	; key repeat but at a slower rate
+	ld a,(dropmethod)
+	cp 0
+	jr z,main12
+	
+	ld a,14
+	ld (lastkeypressed),a	
+	call smalldelay
+main12
 	pop af
-
+	
 main10
 	bit 7,a
 	jr z,joycon
@@ -859,10 +1040,17 @@ jc8
 jc9
 	ld a,(lastkeypressed)
 	cp 7
-	jr z,l9
+	jr z,jc13
 	call droppiece
 	ld a,7
 	ld (lastkeypressed),a	
+	call smalldelay
+jc13
+	ld a,(dropmethod)
+	cp 0
+	jr z,l9
+	ld a,14
+	ld (lastkeypressed),a
 	call smalldelay
 	
 l9   
@@ -1254,10 +1442,74 @@ ml1
 	
 	ret
 	
+;this drops the piece, either by 1 square or till it cannot go any further
+droppiece
+	ld a,(dropmethod)
+	cp 0
+	jr z,droppiecefull
+	
+	jr droppieceonequare
+	
+; moves the block down one square if allowed. First deletes the shape and
+; then checks the new location
+droppieceonequare
+	call eraseghostshape	; always try to erase ghost, if not showing this call will not do anything
+	call erasecurrentshape		
+
+	ld a,(upsidedown)
+	cp 1
+	jr z,dpo2
+	
+	ld a,(plx)
+	inc a	; going down one square
+	ld (tmpx),a
+	jr dpo3
+dpo2	
+	ld a,(plx)
+	dec a	; going up one square (we are upside down)
+	ld (tmpx),a	
+	
+dpo3	
+	ld a,(ply)
+	ld (tmpy),a
+
+	call checkmove
+	ld a,(allowedmove)
+	or 0
+	jr z,dpo1
+	
+	ld a,(upsidedown)
+	cp 1
+	jr z,dpo4
+	
+	ld a,(plx)	; move is valid so increment x
+	inc a
+	ld (plx),a
+	jr dpo1
+
+dpo4
+	ld a,(plx)	; move is valid so decrement x (as upside down)
+	dec a
+	ld (plx),a	
+
+dpo1		
+	ld hl, colourlookuptable
+	ld de,(currentshape)
+	ld d,0	;de is 16 bit, but we are actually trying to add an 8 bit to a 16bit so remove any possible extras
+	add hl,de
+	ld a,(hl)
+	ld (blockcolour),a	; now draw block in new position
+
+	call showcurrentshape
+	call showghostshape
+	
+	ret	
+	
+	
 ; drop the piece till it cannot go any further
 ; this is a loop, the exit being when no more moves are available, when dp1 is 
 ; called which exits
-droppiece
+droppiecefull
 	call eraseghostshape	; always try to erase ghost, if not showing this call will not do anything
 	call erasecurrentshape		
 
@@ -1312,7 +1564,7 @@ dp3
 	call uscor          ; up the score.
 	call printscore		;print this new score
 	   
-	jp droppiece
+	jp droppiecefull
 
 dp1
 	call dp2
@@ -3155,7 +3407,21 @@ yw2
 	
 ; small delay loop used by main loop
 smalldelay
-	ld hl, 5000
+	ld a,(sensitivity)
+	cp 0
+	jr z,sd2
+	cp 1
+	jr z,sd3
+	; else its slow
+	ld hl, 17500
+	jr sd1
+sd2
+	; fast
+	ld hl,5000
+	jr sd1
+sd3
+	; normal
+	ld hl,12500
 sd1
 	dec hl
 	ld a,h
@@ -3165,7 +3431,7 @@ sd1
 	
 ; medium delay loop used by main menu loop
 mediumdelay
-	ld hl, 15000
+	ld hl, 12500
 md1
 	dec hl
 	ld a,h

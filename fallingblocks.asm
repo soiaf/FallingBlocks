@@ -323,7 +323,16 @@ gamemusicenabled	defb	1
 ; drop method. When set to 0 if the player presses drop then the piece drops in one go as
 ; far as it can. If set to 1 then the piece only goes down while the player holds the key
 ; when set to 1 acts like a 'down' key rather than a drop
+; when set to 2, it acts like a mixture. A quick tap causes the piece to drop down fully, 
+; while holding it down causes it to act like a 'down' key.
 dropmethod	defb	0
+
+; this is used when the dropmethod is set to 2, used in the case when we want to say drop full
+fulldropactive defb		0
+
+; as we support key repeat, this is used to show when it is the first call of the key within a 
+; possible repeat series. Holds the number of repeated key presses
+keypresscount	defb	0
 
 ; this holds the key press sensitivity, essentially this is the delay between keypress repeat
 ; 0 is fast, 1 is normal, 2 is slow
@@ -353,6 +362,7 @@ msg_menu_difficulty_hard:	defm CC_INK,2,CC_AT,10,16,"(Hard)   ",255
 msg_menu_dropmethod:	defm CC_INK,7,CC_AT,11,4,"2 Drop Method",255
 msg_menu_dropmethod_normal:		defm CC_INK,4,CC_AT,11,17,"(Full)      ",255
 msg_menu_dropmethod_likedown:	defm CC_INK,2,CC_AT,11,17,"(While Held)",255
+msg_menu_dropmethod_mixture:	defm CC_INK,6,CC_AT,11,17,"(Mixture)   ",255
 msg_menu_sensitivity:	defm CC_INK,7,CC_AT,12,4,"3 Control Response",255
 msg_menu_sensitivity_fast:		defm CC_INK,4,CC_AT,12,22,"(Fast)  ",255
 msg_menu_sensitivity_normal:	defm CC_INK,6,CC_AT,12,22,"(Normal)",255
@@ -454,6 +464,7 @@ BEGIN
 	ld (musicspeed),a
 	xor a
 	ld (noteindex),a	; so music plays at start of song
+	ld (keypresscount),a	; so we show no keys have been pressed before
 		
 		
 	; before we start the main menu we need to see if a kempston joystick is 
@@ -593,14 +604,30 @@ setm5
 	
 	ld a,(dropmethod)
 	cp 0
-	jr nz,setm6	; 0 is normal drop method
-
+	jr z,setm20	; 0 is normal drop method
+	
+	cp 1
+	jr z,setm6; 1 is when acts like a down key
+	
+	; otherwise we assume acting like a mixture
+	jr setm21
+	
+setm20
+	; normal drop method
 	ld hl,msg_menu_dropmethod_normal
 	call print_message
 	jr setm2
 	
 setm6	
+	; when drop acts like a down key
 	ld hl,msg_menu_dropmethod_likedown
+	call print_message
+	jr setm2
+	
+setm21
+	; when drop acts like a mixture, quick tap will drop, otherwise
+	; holding the key down will act like a 'down' key
+	ld hl,msg_menu_dropmethod_mixture
 	call print_message	
 		
 setm2
@@ -668,16 +695,20 @@ setm3
 	ld hl,msg_menu_difficulty_normal
 	call print_message
 	call mediumdelay
-	jr setm19		
+	jp setm19		
 
 setm4
 	bit 1,a		; check for keypress of number 2 - drop method
 	jr nz,setm7
 	
 	ld a,(dropmethod)
-	cp 0
-	jr nz,setm8
+	cp 1
+	jr z,setm8	; currently acts like down key
 	
+	cp 2
+	jr z,setm23
+
+setm22	
 	; drop method is currently 0 (normal), set to 1
 	ld a,1
 	ld (dropmethod),a
@@ -686,14 +717,22 @@ setm4
 	call mediumdelay
 	jr setm19	
 setm8
-	; drop method is currently 1 (like down key), set to 0
+	; drop method is currently 1 (like down key), set to 2
+	ld a,2
+	ld (dropmethod),a
+	ld hl,msg_menu_dropmethod_mixture
+	call print_message
+	call mediumdelay
+	jr setm19	
+setm23
+	; drop method is currently 2 (mixture), set to 0
 	xor a
 	ld (dropmethod),a
 	ld hl,msg_menu_dropmethod_normal
 	call print_message
 	call mediumdelay
 	jr setm19	
-
+	
 setm7	
 	bit 2,a		; check for keypress of number 3 - key sensitivity
 	jr nz,setm18
@@ -800,11 +839,18 @@ main1
 	jr main2
 nokeypressed	
 	; we set no key pressed here unless joystick mode is active (which will be dealt with below)
+	; one possible action here - if dropmethod is 2 and last key was drop and it was the first call of
+	; the drop key then we do a full drop here
 	push af
 	ld a,(kemsptonactivated)
 	cp 1
 	jr z,main9
+
+	call droppieceiftapped
+		
+main13	
 	xor a
+	ld (keypresscount),a
 	ld (lastkeypressed),a
 main9	
 	pop af
@@ -907,13 +953,18 @@ l6
 	bit 2,a
 	jr z,main10
 	push af
+	ld a,(keypresscount)
+	inc a
+	ld (keypresscount),a
+	
 	ld a,(lastkeypressed)
 	cp 7
 	jr z,main8
+
 	call droppiece
 	ld a,7
 	ld (lastkeypressed),a
-	call smalldelay	
+	call mediumdelay	; drop unusual in that we do not vary delay
 	pop af
 	jr main10
 main8
@@ -921,13 +972,14 @@ main8
 	; but we change last key to 14
 	; effectively this means that down move can be made on next call, so we have
 	; key repeat but at a slower rate
+	
 	ld a,(dropmethod)
 	cp 0
 	jr z,main12
 	
 	ld a,14
 	ld (lastkeypressed),a	
-	call smalldelay
+	call mediumdelay	; drop unusual in that we do not vary delay
 main12
 	pop af
 	
@@ -962,8 +1014,12 @@ joycon
 	and 31	; bitmask 5 bits
 	or 0
 	jr nz, jc10
+	
+	call droppieceiftapped
 	xor a
 	ld (lastkeypressed),a
+	ld (keypresscount),a
+	jp l9	; no joystick action, so skip ahead
 
 jc10	
 	ld bc,31            ; Kempston joystick port.
@@ -1038,20 +1094,24 @@ jc8
 	jr nz,jc9	   ; fire pressed.
 	jr l9
 jc9
+	ld a,(keypresscount)
+	inc a
+	ld (keypresscount),a
 	ld a,(lastkeypressed)
 	cp 7
 	jr z,jc13
 	call droppiece
 	ld a,7
 	ld (lastkeypressed),a	
-	call smalldelay
+	call mediumdelay	; different (fixed) delay for drop
+	jr l9
 jc13
 	ld a,(dropmethod)
 	cp 0
-	jr z,l9
+	jr z,l9		; we do not repeat keypresses when drop method is full
 	ld a,14
 	ld (lastkeypressed),a
-	call smalldelay
+	call mediumdelay	; different (fixed) delay for drop
 	
 l9   
 	ld a,(difficulty)
@@ -1441,14 +1501,47 @@ ml1
 	call showghostshape
 	
 	ret
+
+; this drops the piece when in mixture drop mode and drop key has been tapped
+
+droppieceiftapped
+	; check dropmethod and lastkeypressed and keypresscount
+	ld a,(dropmethod)
+	cp 2
+	ret nz
+	ld a,(lastkeypressed)
+	cp 7	; drop
+	ret nz
+	ld a,(keypresscount)
+	cp 1
+	ret nz
+	
+	ld a,1
+	ld (fulldropactive),a
+	call droppiece
+	call smalldelay
+	
+	ret
 	
 ;this drops the piece, either by 1 square or till it cannot go any further
 droppiece
 	ld a,(dropmethod)
 	cp 0
 	jr z,droppiecefull
+	cp 1
+	jr z,droppieceonequare
+	; we are not 0 or 1 so using a mixture - check for fulldropactive
+	ld a,(fulldropactive)
+	cp 0
+	jr z,droppieceonequare
 	
-	jr droppieceonequare
+	; if here then using mixture dropmethod and full drop has been requested
+	xor a
+	ld (fulldropactive),a
+	
+	jr droppiecefull
+	
+	
 	
 ; moves the block down one square if allowed. First deletes the shape and
 ; then checks the new location
@@ -3423,21 +3516,28 @@ sd3
 	; normal
 	ld hl,12500
 sd1
-	dec hl
-	ld a,h
-	or l
-	jr nz,sd1
-	ret
+	jr actualdelay
 	
+longdelay
+	ld hl, 17500
+	jr actualdelay
+		
 ; medium delay loop used by main menu loop
 mediumdelay
 	ld hl, 12500
-md1
+	jr actualdelay
+	
+; very small delay loop used by main menu loop
+verysmalldelay
+	ld hl, 5000
+	jr actualdelay
+	
+actualdelay
 	dec hl
 	ld a,h
 	or l
-	jr nz,md1
-	ret	
+	jr nz,actualdelay
+	ret		
 	
 ; This draws words onscreen using blocks to make up the parts of the letters	
 ; Each byte represents a colour for the block to draw

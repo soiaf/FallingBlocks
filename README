@@ -7,7 +7,6 @@
 
 This package contains the source code for the game 'Falling Blocks'.
 This game is written in z80 assembly for the ZX Spectrum.
-This is my first piece of z80 assembly coding!
 
 The code has been successfully assembled and tested on both ZX Spin and Pasmo.
 Using Pasmo allows you to produce a TAP file which can be read by most Spectrum
@@ -26,11 +25,20 @@ keys are as follows:
 
 O		-	move left
 P		-	move right
-Space		-	rotate piece
+Space	-	rotate piece
 D 		-	Drop piece
 G		-	enable/disable ghost mode
 S		-	Swap/Save a piece for later usage
-M		-	Switch music on/off
 
+You are able to modify the behaviour of the 'Drop piece' key in the settings menu
+off the main menu. The three possible options are
+
+Full - Pressing the drop key will cause the piece to fall down the screen as far as 
+possible
+While Held - This will cause the piece to drop as long as the drop key is pressed 
+(effectively works like a down key)
+Mixture - If you quickly press/tap the drop key, the piece will fall down the screen
+as far as possible, however holding the drop key will drop the piece as long as the 
+drop key is pressed - therefore a mixture of 'Full' and 'While Held'
 
 Please direct any questions or comments to beatofthedrum@gmail.com

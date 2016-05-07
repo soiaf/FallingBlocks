@@ -1,7 +1,7 @@
 ; 
 ; FallingBlocks.asm 
 ;
-; Copyright (c) 2015 Peter McQuillan 
+; Copyright (c) 2015-2016 Peter McQuillan 
 ; 
 ; All Rights Reserved. 
 ; 
@@ -868,7 +868,7 @@ main2
 	ld (lastkeypressed),a	
 	call smalldelay
 	pop af
-	jr l1
+	jp joycon	; we skip to the end of the check keyboard key section as the right key was pressed
 main5
 	; if last key was right, we do not move right, but we change last key to 8
 	; effectively this means that right move can be made on next call, so we have
@@ -877,6 +877,7 @@ main5
 	ld (lastkeypressed),a	
 	call smalldelay
 	pop af
+	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
 l1
 	bit 6,a
 	jr z,l2
@@ -890,12 +891,13 @@ l1
 	ld (lastkeypressed),a	
 	call smalldelay
 	pop af
-	jr l2
+	jp joycon	; we skip to the end of the check keyboard key section as the left key was pressed
 main6
 	ld a,6
 	ld (lastkeypressed),a	
 	call smalldelay
 	pop af
+	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
 l2
 	bit 0,a
 	jr z,l3
@@ -904,6 +906,7 @@ l2
 	call swapshape
 	call smalldelay	
 	pop af
+	jp joycon	; we skip to the end of the check keyboard key section as the swap key was pressed
 l3
 	bit 1,a
 	jr z,l4
@@ -916,9 +919,10 @@ l3
 	ld (lastkeypressed),a	
 	call smalldelay	
 	pop af
-	jr l4
+	jp joycon	; we skip to the end of the check keyboard key section as the ghost key was pressed
 main7
 	pop af
+	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
 l4
 	bit 3,a	
 	jr z,l5
@@ -931,9 +935,10 @@ l4
 	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jr l5
+	jp joycon	; we skip to the end of the check keyboard key section as the clockwise key was pressed
 main4
 	pop af
+	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
 l5
 	bit 4,a	
 	jr z,l6
@@ -946,9 +951,10 @@ l5
 	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jr l6
+	jp joycon	; we skip to the end of the check keyboard key section as the anticlockwise key was pressed
 main3
 	pop af
+	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
 l6	
 	bit 2,a
 	jr z,main10
@@ -966,7 +972,7 @@ l6
 	ld (lastkeypressed),a
 	call mediumdelay	; drop unusual in that we do not vary delay
 	pop af
-	jr main10
+	jr joycon	; we skip to the end of the check keyboard key section as the drop key was pressed
 main8
 	; if last key was drop, and our drop method is one square/down we do not drop down on square, 
 	; but we change last key to 14
@@ -982,6 +988,7 @@ main8
 	call mediumdelay	; drop unusual in that we do not vary delay
 main12
 	pop af
+	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
 	
 main10
 	bit 7,a

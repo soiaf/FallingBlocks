@@ -342,9 +342,11 @@ randomtable:
     db   82,97,120,111,102,116,20,12
 	
 ; holds a value for last action/key pressed. 
-; 0 means no key, 1 means clockwise, 2 anticlockwise
-; 3 left, 4 right, 5 ghost, 7 drop, 9 music
+; a bit is set corresponding to the action done
 lastkeypressed	defb	0
+
+;; this mask determines if simultaneous key presses are allowed. Set to 255 to allow
+keypressmask	defb	0
 
 msg_menu_copyright:		defm CC_INK,7,CC_AT,13,4,"(c)2015 Peter McQuillan",255
 msg_menu_startgame: 	defm CC_INK,7,CC_AT,18,4,"1 Start Game",255
@@ -857,47 +859,75 @@ main9
 main2	 
 	;check key for right pressed
 	bit 5,a
-	jr z,l1
+	jr z,re1
 	; move right if valid move
 	push af
 	ld a,(lastkeypressed)
-	cp 4
-	jr z,main5	
+	bit 5,a
+	jr nz,main5	
 	call moveright
-	ld a,4
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	set 5,a		; set the 5 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the right key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jp l1
 main5
 	; if last key was right, we do not move right, but we change last key to 8
 	; effectively this means that right move can be made on next call, so we have
 	; key repeat but at a slower rate
-	ld a,8
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	res 5,a		; reset the 5 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jp l1
+re1
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 5,a		; reset the 5 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af
 l1
 	bit 6,a
-	jr z,l2
+	jr z,re2
 	; move left if valid move
 	push af
 	ld a,(lastkeypressed)
-	cp 3
-	jr z,main6	
+	bit 6,a
+	jr nz,main6	
 	call moveleft
-	ld a,3
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	set 6,a		; set the 6 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the left key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l2
 main6
-	ld a,6
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	res 6,a		; reset the 6 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l2
+re2
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 6,a		; reset the 6 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af
 l2
 	bit 0,a
 	jr z,l3
@@ -906,73 +936,118 @@ l2
 	call swapshape
 	call smalldelay	
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the swap key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
 l3
 	bit 1,a
-	jr z,l4
+	jr z,re3
 	push af
 	ld a,(lastkeypressed)
-	cp 5
-	jr z,main7	
+	bit 1,a
+	jr nz,main7	
 	call changeghostsetting
-	ld a,5
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	set 1,a		; set the 1 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call smalldelay	
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the ghost key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l4
 main7
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as a key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l4
+re3
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 1,a		; reset the 1 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af
 l4
 	bit 3,a	
 	jr z,l5
 	push af
 	ld a,(lastkeypressed)
-	cp 1
-	jr z, main4	; if the last key pressed was moving clockwise then we don't turn clockwise again
+	bit 3,a
+	jr nz, main4	; if the last key pressed was moving clockwise then we don't turn clockwise again
 	call moveclockwise
-	ld a,1
+	ld a,(lastkeypressed)
+	set 3,a		; set the 3 bit of lastkeypressed
 	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the clockwise key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l5
 main4
 	pop af
-	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l5
+re4
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 3,a		; reset the 3 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af	
 l5
 	bit 4,a	
-	jr z,l6
+	jr z,re5
 	push af
 	ld a,(lastkeypressed)
-	cp 2
-	jr z,main3
+	bit 4,a
+	jr nz,main3
 	call moveanticlockwise
-	ld a,2
+	ld a,(lastkeypressed)
+	set 4,a		; set the 4 bit of lastkeypressed
 	ld (lastkeypressed),a
 	call smalldelay
 	pop af
-	jp joycon	; we skip to the end of the check keyboard key section as the anticlockwise key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l6
 main3
 	pop af
-	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr l6
+re5
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 4,a		; reset the 4 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af	
 l6	
 	bit 2,a
-	jr z,main10
+	jr z,re6
 	push af
 	ld a,(keypresscount)
 	inc a
 	ld (keypresscount),a
 	
 	ld a,(lastkeypressed)
-	cp 7
-	jr z,main8
+	bit 2,a
+	jr nz,main8
 
 	call droppiece
-	ld a,7
+	ld a,(lastkeypressed)
+	set 2,a		; set the 2 bit of lastkeypressed
 	ld (lastkeypressed),a
 	call mediumdelay	; drop unusual in that we do not vary delay
 	pop af
-	jr joycon	; we skip to the end of the check keyboard key section as the drop key was pressed
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr main10	; we skip to the end of the check keyboard key section as the drop key was pressed
 main8
 	; if last key was drop, and our drop method is one square/down we do not drop down on square, 
 	; but we change last key to 14
@@ -983,29 +1058,51 @@ main8
 	cp 0
 	jr z,main12
 	
-	ld a,14
-	ld (lastkeypressed),a	
+	ld a,(lastkeypressed)
+	res 2,a		; reset the 2 bit of lastkeypressed
+	ld (lastkeypressed),a
 	call mediumdelay	; drop unusual in that we do not vary delay
 main12
 	pop af
-	jr joycon	; we skip to the end of the check keyboard key section as a key was pressed
-	
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr main10
+re6
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 2,a		; reset the 2 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af		
 main10
 	bit 7,a
 	jr z,joycon
 	push af
 	ld a,(lastkeypressed)
-	cp 9
-	jr z,main11
+	bit 7,a
+	jr nz,main11
 	call switchmusiconoff
-	ld a,9
+	ld a,(lastkeypressed)
+	set 7,a		; set the 7 bit of lastkeypressed
 	ld (lastkeypressed),a
 	call smalldelay
 	pop af
+	ld b,a
+	ld a,(keypressmask)
+	and b
 	jr joycon
 main11
 	pop af
-
+	ld b,a
+	ld a,(keypressmask)
+	and b
+	jr joycon
+re7
+	push af		; a is holding the key pressed so save to the stack
+	ld a,(lastkeypressed)
+	res 7,a		; reset the 7 bit of lastkeypressed
+	ld (lastkeypressed),a
+	pop af	
 	
 	; in addition to key support, we also support Kempston joystick. On zxspin the emulator uses
 	; the cursor keys with CTRL (for fire)

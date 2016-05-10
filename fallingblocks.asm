@@ -369,7 +369,10 @@ msg_menu_sensitivity:	defm CC_INK,7,CC_AT,12,4,"3 Control Response",255
 msg_menu_sensitivity_fast:		defm CC_INK,4,CC_AT,12,22,"(Fast)  ",255
 msg_menu_sensitivity_normal:	defm CC_INK,6,CC_AT,12,22,"(Normal)",255
 msg_menu_sensitivity_slow:		defm CC_INK,2,CC_AT,12,22,"(Slow)  ",255
-msg_menu_back_to_main_menu:	defm CC_INK,7,CC_AT,13,4,"4 Back To Main Menu",255
+msg_menu_simultaneous: defm CC_INK,7,CC_AT,13,4,"4 Simultaneous Keys",255
+msg_menu_simultaneous_off:		defm CC_INK,4,CC_AT,13,23,"(Off)  ",255
+msg_menu_simultaneous_on:		defm CC_INK,2,CC_AT,13,23,"(On)   ",255
+msg_menu_back_to_main_menu:	defm CC_INK,7,CC_AT,14,4,"5 Back To Main Menu",255
 
 msg_game_score:		defm CC_INK,7,CC_AT,2,25,"Score",255
 msg_game_highscore:	defm CC_INK,7,CC_AT,2,3,"High",255
@@ -662,9 +665,30 @@ setm12
 	; sensitivity is 2, slow
 	ld hl, msg_menu_sensitivity_slow
 	call print_message
-	jr setm13
 		
 setm13
+	; print the simultaneous keys message
+	ld hl, msg_menu_simultaneous
+	call print_message
+	
+	ld a,(keypressmask)
+	cp 0
+	jr z,setm30
+	cp 255
+	jr z,setm31
+	
+	jr	setm32	; this line should not be called, here just in case!
+	
+setm30
+	ld hl, msg_menu_simultaneous_off
+	call print_message
+	jr setm32
+	
+setm31
+	ld hl, msg_menu_simultaneous_on
+	call print_message
+
+setm32
 	; print the back to main menu message
 	ld hl, msg_menu_back_to_main_menu
 	call print_message
@@ -717,7 +741,7 @@ setm22
 	ld hl,msg_menu_dropmethod_likedown
 	call print_message
 	call mediumdelay
-	jr setm19	
+	jp setm19	
 setm8
 	; drop method is currently 1 (like down key), set to 2
 	ld a,2
@@ -725,7 +749,7 @@ setm8
 	ld hl,msg_menu_dropmethod_mixture
 	call print_message
 	call mediumdelay
-	jr setm19	
+	jp setm19	
 setm23
 	; drop method is currently 2 (mixture), set to 0
 	xor a
@@ -777,10 +801,40 @@ setm16
 	jr setm19	
 	
 setm18
-	bit 3,a		; check for keypress of number 4 - back to main menu
-	jr nz,setm19
+	bit 4,a		; check for keypress of number 5 - back to main menu
+	jr nz,setm33
 
 	ret		; back to main menu
+	
+setm33
+	bit 3,a		; check for keypress of number 4 - simultaneous keypress
+	jr nz,setm19
+
+	ld a,(keypressmask)
+	cp 0
+	jr z, setm34
+	cp 255
+	jr z, setm35
+	
+	jr setm19	; this line should not be called
+	
+setm34
+	; keypressmask is 0, set to 255
+	ld a,255
+	ld (keypressmask),a
+	ld hl, msg_menu_simultaneous_on
+	call print_message
+	call mediumdelay
+	jr setm19
+	
+setm35
+	; keypressmask is 255, set to 0
+	xor a
+	ld (keypressmask),a
+	ld hl, msg_menu_simultaneous_off
+	call print_message
+	call mediumdelay
+	jr setm19	
 	
 setm19
 	jp setm2
@@ -986,6 +1040,10 @@ l4
 	and b
 	jr l5
 main4
+	ld a,(lastkeypressed)
+	res 3,a		; reset the 3 bit of lastkeypressed
+	ld (lastkeypressed),a
+	call smalldelay
 	pop af
 	ld b,a
 	ld a,(keypressmask)
@@ -1015,6 +1073,10 @@ l5
 	and b
 	jr l6
 main3
+	ld a,(lastkeypressed)
+	res 4,a		; reset the 4 bit of lastkeypressed
+	ld (lastkeypressed),a
+	call smalldelay
 	pop af
 	ld b,a
 	ld a,(keypressmask)
@@ -5088,5 +5150,6 @@ org 65024
 end 24576	; assembler directive, says this is the end of the code and where the entry point is
 
 	
+
 
 

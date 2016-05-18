@@ -345,6 +345,11 @@ randomtable:
 ; a bit is set corresponding to the action done
 lastkeypressed	defb	0
 
+; holds a value for last joystick action done 
+; a bit is set corresponding to the action done
+lastjoystick	defb	0
+
+
 ;; this mask determines if simultaneous key presses are allowed. Set to 255 to allow
 keypressmask	defb	0
 
@@ -1112,7 +1117,7 @@ l6
 	jr main10	; we skip to the end of the check keyboard key section as the drop key was pressed
 main8
 	; if last key was drop, and our drop method is one square/down we do not drop down on square, 
-	; but we change last key to 14
+	; but we reset bit 2 of lastkeypressed
 	; effectively this means that down move can be made on next call, so we have
 	; key repeat but at a slower rate
 	
@@ -1183,7 +1188,7 @@ joycon
 	
 	call droppieceiftapped
 	xor a
-	ld (lastkeypressed),a
+	ld (lastjoystick),a
 	ld (keypresscount),a
 	jp l9	; no joystick action, so skip ahead
 
@@ -1194,17 +1199,18 @@ jc10
 	jr nz,jc1    		; move left.
 	jr jc2
 jc1
-	ld a,(lastkeypressed)
-	cp 3
-	jr z,jc11
+	ld a,(lastjoystick)
+	bit 2,a
+	jr nz,jc11
 	call moveleft
-	ld a,3
-	ld (lastkeypressed),a	
+	ld a,(lastjoystick)
+	set 2,a
+	ld (lastjoystick),a	
 	call smalldelay
 	jr jc2
 jc11
-	ld a,6
-	ld (lastkeypressed),a
+	res 2,a
+	ld (lastjoystick),a
 	call smalldelay
 jc2	
 	ld bc,31
@@ -1213,17 +1219,18 @@ jc2
 	jr nz,jc3 		  ; move right.
 	jr jc4
 jc3
-	ld a,(lastkeypressed)
-	cp 4
-	jr z,jc12
+	ld a,(lastjoystick)
+	bit 1,a
+	jr nz,jc12
 	call moveright
-	ld a,4
-	ld (lastkeypressed),a	
+	ld a,(lastjoystick)
+	set 1,a
+	ld (lastjoystick),a	
 	call smalldelay
 	jr jc4
 jc12	
-	ld a,8
-	ld (lastkeypressed),a
+	res 1,a
+	ld (lastjoystick),a
 	call smalldelay
 jc4	
 	ld bc,31
@@ -1232,12 +1239,18 @@ jc4
 	jr nz,jc5  			; move up.
 	jr jc6
 jc5
-	ld a,(lastkeypressed)
-	cp 1
-	jr z,jc6
+	ld a,(lastjoystick)
+	bit 4,a
+	jr nz,jc14
 	call moveclockwise
-	ld a,1
-	ld (lastkeypressed),a
+	ld a,(lastjoystick)
+	set 4,a
+	ld (lastjoystick),a
+	call smalldelay
+	jr jc6
+jc14
+	res 4,a
+	ld (lastjoystick),a 
 	call smalldelay
 jc6	
 	ld bc,31
@@ -1246,12 +1259,18 @@ jc6
 	jr nz,jc7
 	jr jc8
 jc7
-	ld a,(lastkeypressed)
-	cp 2
-	jr z,jc8
+	ld a,(lastjoystick)
+	bit 3,a
+	jr nz,jc15
 	call moveanticlockwise
-	ld a,2
-	ld (lastkeypressed),a	
+	ld a,(lastjoystick)
+	set 3,a 
+	ld (lastjoystick),a	
+	call smalldelay
+	jr jc8
+jc15
+	res 3,a
+	ld (lastjoystick),a 
 	call smalldelay
 jc8	
 	ld bc,31
@@ -1263,20 +1282,22 @@ jc9
 	ld a,(keypresscount)
 	inc a
 	ld (keypresscount),a
-	ld a,(lastkeypressed)
-	cp 7
-	jr z,jc13
+	ld a,(lastjoystick)
+	bit 5,a
+	jr nz,jc13
 	call droppiece
-	ld a,7
-	ld (lastkeypressed),a	
+	ld a,(lastjoystick)
+	set 5,a 
+	ld (lastjoystick),a	
 	call mediumdelay	; different (fixed) delay for drop
 	jr l9
 jc13
 	ld a,(dropmethod)
 	cp 0
 	jr z,l9		; we do not repeat keypresses when drop method is full
-	ld a,14
-	ld (lastkeypressed),a
+	ld a,(lastjoystick)
+	res 5,a
+	ld (lastjoystick),a
 	call mediumdelay	; different (fixed) delay for drop
 	
 l9   
@@ -1671,13 +1692,18 @@ ml1
 ; this drops the piece when in mixture drop mode and drop key has been tapped
 
 droppieceiftapped
-	; check dropmethod and lastkeypressed and keypresscount
+	; check dropmethod and (lastkeypressed or lastjoystick) and keypresscount
 	ld a,(dropmethod)
 	cp 2
 	ret nz
 	ld a,(lastkeypressed)
-	cp 7	; drop
-	ret nz
+	bit 2,a	; drop
+	jr dpit1
+	ld a,(lastjoystick)
+	bit 5,a	; drop
+	jr dpit1
+	ret
+dpit1	
 	ld a,(keypresscount)
 	cp 1
 	ret nz

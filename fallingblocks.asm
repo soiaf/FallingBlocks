@@ -334,9 +334,12 @@ fulldropactive defb		0
 ; possible repeat series. Holds the number of repeated key presses
 keypresscount	defb	0
 
+; this holds the number of repeated joystick fire button presses
+firebuttoncount	defb	0
+
 ; this holds the key press sensitivity, essentially this is the delay between keypress repeat
 ; 0 is fast, 1 is normal, 2 is slow
-sensitivity	defb	0
+sensitivity	defb	1
 
 randomtable:
     db   82,97,120,111,102,116,20,12
@@ -475,6 +478,7 @@ BEGIN
 	xor a
 	ld (noteindex),a	; so music plays at start of song
 	ld (keypresscount),a	; so we show no keys have been pressed before
+	ld (firebuttoncount),a	; we reset the counter for the joystick fire button presses
 		
 		
 	; before we start the main menu we need to see if a kempston joystick is 
@@ -899,22 +903,11 @@ main1
 	jr z,nokeypressed
 	jr main2
 nokeypressed	
-	; we set no key pressed here unless joystick mode is active (which will be dealt with below)
-	; one possible action here - if dropmethod is 2 and last key was drop and it was the first call of
-	; the drop key then we do a full drop here
-	push af
-	ld a,(kemsptonactivated)
-	cp 1
-	jr z,main9
-
 	call droppieceiftapped
-		
-main13	
 	xor a
 	ld (keypresscount),a
-	ld (lastkeypressed),a
-main9	
-	pop af
+	ld (lastkeypressed),a	
+	jp joycon	;no key has been pressed so jump to joystick check part
 main2	 
 	;check key for right pressed
 	bit 5,a
@@ -1189,7 +1182,7 @@ joycon
 	call droppieceiftapped
 	xor a
 	ld (lastjoystick),a
-	ld (keypresscount),a
+	ld (firebuttoncount),a
 	jp l9	; no joystick action, so skip ahead
 
 jc10	
@@ -1279,9 +1272,9 @@ jc8
 	jr nz,jc9	   ; fire pressed.
 	jr l9
 jc9
-	ld a,(keypresscount)
+	ld a,(firebuttoncount)
 	inc a
-	ld (keypresscount),a
+	ld (firebuttoncount),a
 	ld a,(lastjoystick)
 	bit 5,a
 	jr nz,jc13
@@ -1692,7 +1685,7 @@ ml1
 ; this drops the piece when in mixture drop mode and drop key has been tapped
 
 droppieceiftapped
-	; check dropmethod and (lastkeypressed or lastjoystick) and keypresscount
+	; check dropmethod and (lastkeypressed or lastjoystick) and (keypresscount or firebuttoncount)
 	ld a,(dropmethod)
 	cp 2
 	ret nz
@@ -1706,8 +1699,12 @@ droppieceiftapped
 dpit1	
 	ld a,(keypresscount)
 	cp 1
-	ret nz
-	
+	jr z,dpit2
+	ld a,(firebuttoncount)
+	cp 1
+	jr z,dpit2
+	ret
+dpit2	
 	ld a,1
 	ld (fulldropactive),a
 	call droppiece

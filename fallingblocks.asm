@@ -36,6 +36,7 @@ graphics
 		defb 63, 127, 255, 240, 224, 227, 231, 231	; pipe corner top left
 		defb 231, 231, 199, 7, 15, 255, 254, 252	; pipe corner bottom right
 		defb 252, 254, 255, 15, 7, 199, 231, 231	; pipe corner top right
+		defb 8, 4, 2, 255, 2, 4, 8, 0, 56			; arrow pointing right
 		
 ;Port array used for the redefine keys routine
 port_array:		defb $7f ; B-SPACE
@@ -308,11 +309,31 @@ ghostactive	defb	0
 ; issues if activated when, say, emulator is not set to support it.
 ; 0 - disabled, 1 - enabled, 2 - not available
 
-kemsptonactivated	defb	0
+kemsptonactivated	defb	1
 
 ; this holds the difficulty level, 0 is normal, 1 is hard
 
 difficulty	defb	0
+
+; this holds the mainmenu option pointer. If joystick is available then this is the option
+; the arrow is pointing at
+mainmenuoptionpointer	defb	0
+
+; this holds the current settings option pointer. If joystick is available then this is the option
+; the arrow is pointing at
+settingsmenuoptionpointer	defb	0
+
+; this holds the mainmenu option chosen. 
+mainmenuoptionchosen	defb	0
+
+; this holds the current settings option chosen. 
+settingsmenuoptionchosen	defb	0
+
+; this holds the colour of the arrow that points at the menu options
+arrowcolour		defb	2
+
+; this holds the current x position of the arrow
+arrowxpos	defb	18
 
 ; timer used when deciding to auto drop the block
 pretim defb 0
@@ -455,7 +476,7 @@ START
 
 	ld de,(23675)	; address of user-defined graphics data.
 	ld hl, graphics
-	ld bc,80
+	ld bc,88
 	ldir
 
 BEGIN
@@ -479,7 +500,11 @@ BEGIN
 	ld (noteindex),a	; so music plays at start of song
 	ld (keypresscount),a	; so we show no keys have been pressed before
 	ld (firebuttoncount),a	; we reset the counter for the joystick fire button presses
-		
+	ld (mainmenuoptionpointer),a	; we reset where the arrow points to on main menu
+	
+	ld a,18
+	ld (arrowxpos),a		; start position on screen for the arrow (if kemptson available)
+	
 		
 	; before we start the main menu we need to see if a kempston joystick is 
 	; actually there. Otherwise you can have a situation where the user enables
@@ -497,6 +522,8 @@ BEGIN
 	and 12
 	cp 12	; 12 (8+4) is both up and down, again should not be possible
 	jr z, nojoy
+	; a joystick is available, show arrow
+	call drawarrow
 	jr mainmenu	; all good, go to main menu
 nojoy
 	ld a,2
@@ -540,19 +567,126 @@ mm9
 	call print_message	
 	
 mm1
+	; if kempston is active, we check for up, down and fire
+	ld a,(kemsptonactivated)
+	cp 2
+	jp z, mmkey1
+mmjoy1
+	; kempston is available
+	ld bc,31
+	in a,(c)
+	and 31	; bitmask 5 bits
+	or 0
+	jr nz, mmjoy2
+	jp mmkey1	; no joystick action
+mmjoy2
+	ld bc,31
+	in a,(c)            ; read input.
+	and 8               ; check "up" bit.
+	jr nz,mmjoy3	; move up.
+	jr mmjoy4
+mmjoy3
+	; move arrow up if possible
+	; if mainmenuoptionpointer is 0 then cannot move up
+	ld a,(mainmenuoptionpointer)
+	or 0
+	jp z, mmkey1	; at top option already, jump to key read section as nothing more to do in joystick section
+	; possible to move up, so decrement mainmenuoptionpointer and arrowxpos
+	xor a
+	ld (arrowcolour),a
+	call drawarrow			; erase old arrow
+	
+	ld a,(mainmenuoptionpointer)
+	dec a
+	ld (mainmenuoptionpointer),a
+	ld a,(arrowxpos)
+	dec a
+	ld (arrowxpos),a
+	ld a,2
+	ld (arrowcolour),a
+	call drawarrow
+	call smalldelay
+	jr mmkey1	; finished in joystick read section
+	
+mmjoy4
+	ld bc,31
+	in a,(c)            ; read input.
+	and 4               ; check "down" bit.
+	jr nz,mmjoy5
+	jr mmjoy6
+mmjoy5
+	; move arrow down if possible
+	; if mainmenuoptionpointer is 3 then cannot move down
+	ld a,(mainmenuoptionpointer)
+	cp 3
+	jr z, mmkey1	; at bottom option already, jump to key read section as nothing more to do in joystick section
+	; possible to move down, so increment mainmenuoptionpointer and arrowxpos
+	xor a
+	ld (arrowcolour),a
+	call drawarrow			; erase old arrow
+	ld a,(mainmenuoptionpointer)
+	inc a
+	ld (mainmenuoptionpointer),a
+	ld a,(arrowxpos)
+	inc a
+	ld (arrowxpos),a
+	ld a,2
+	ld (arrowcolour),a
+	call drawarrow
+	call smalldelay
+	jr mmkey1	; finished in joystick read section
+
+mmjoy6
+	ld bc,31
+	in a,(c)            ; read input.
+	and 16              ; try the fire bit.
+	jr nz,mmjoy7	   ; fire pressed.
+	jr mmkey1
+mmjoy7
+	; fire button pressed
+	ld a,(mainmenuoptionpointer)
+	cp 1
+	jr nz, mmjoy8
+	; the key read routine actually sets all the bits to 1 except the key corresponding to key pressed
+	ld a,29		; 11101
+	ld (mainmenuoptionchosen),a
+	jr mm20		
+mmjoy8
+	cp 2
+	jr nz, mmjoy9
+	ld a,27		; 11011
+	ld (mainmenuoptionchosen),a
+	jr mm20		
+mmjoy9
+	cp 3
+	jr nz, mmjoy10
+	ld a,23		;10111
+	ld (mainmenuoptionchosen),a
+	jr mm20		
+mmjoy10
+	; assume it is start game
+	ld a,30		;11110
+	ld (mainmenuoptionchosen),a
+	jr mm20
+mmkey1
 	;IN 63486 reads the half row 1 to 5
 	ld bc,63486
 	in a,(c)
+	ld (mainmenuoptionchosen),a
+mm20	
+	ld a,(mainmenuoptionchosen)
 	bit 0,a
 	jr nz,mm2
 
 	jr mm5	;1 key pressed, start game
 mm2
+	ld a, (mainmenuoptionchosen)
 	bit 1,a
 	jr nz,mm3
 	call do_the_redefine
 	jp BEGIN
 mm3
+	ld a, (mainmenuoptionchosen)
 	bit 2,a
 	jr nz,mm7
 	ld a,(kemsptonactivated)
@@ -580,6 +714,7 @@ mm10
 	jr mm13
 	
 mm7	
+	ld a, (mainmenuoptionchosen)
 	bit 3,a		; check for keypress of number 4
 	jr nz,mm13
 	
@@ -587,7 +722,7 @@ mm7
 	jp BEGIN	; need to reset everything after accessing settings menu
 
 mm13	
-	jr mm1
+	jp mm1
 mm5
 	call 3503
 	jp maingame
@@ -596,6 +731,12 @@ settingsmenu
 	; settings menu is where difficulty level can be chosen and where the behaviour of the pieces can be altered
 
 	call ROM_CLS
+	
+	xor a
+	ld (settingsmenuoptionpointer),a	; we reset where the arrow points to on settings menu
+	
+	ld a,10
+	ld (arrowxpos),a		; start position on screen for the arrow on settings menu (if kemptson available)
 	
 	ld hl,msg_menu_difficulty
 	call print_message
@@ -705,10 +846,123 @@ setm32
 	call mediumdelay
 
 setm9
+	; if kempston is active, we check for up, down and fire
+	ld a,(kemsptonactivated)
+	cp 2
+	jp z, smkey1
+	call drawarrow
+smjoy1
+	; kempston is available
+	ld bc,31
+	in a,(c)
+	and 31	; bitmask 5 bits
+	or 0
+	jr nz, smjoy2
+	jp smkey1	; no joystick action
+smjoy2
+	ld bc,31
+	in a,(c)            ; read input.
+	and 8               ; check "up" bit.
+	jr nz,smjoy3	; move up.
+	jr smjoy4
+smjoy3
+	; move arrow up if possible
+	; if settingsmenuoptionpointer is 0 then cannot move up
+	ld a,(settingsmenuoptionpointer)
+	or 0
+	jp z, smkey1	; at top option already, jump to key read section as nothing more to do in joystick section
+	; possible to move up, so decrement settingsmenuoptionpointer and arrowxpos
+	xor a
+	ld (arrowcolour),a
+	call drawarrow			; erase old arrow
+	
+	ld a,(settingsmenuoptionpointer)
+	dec a
+	ld (settingsmenuoptionpointer),a
+	ld a,(arrowxpos)
+	dec a
+	ld (arrowxpos),a
+	ld a,2
+	ld (arrowcolour),a
+	call drawarrow
+	call smalldelay
+	jr smkey1	; finished in joystick read section
+	
+smjoy4
+	ld bc,31
+	in a,(c)            ; read input.
+	and 4               ; check "down" bit.
+	jr nz,smjoy5
+	jr smjoy6
+smjoy5
+	; move arrow down if possible
+	; if settingsmenuoptionpointer is 4 then cannot move down
+	ld a,(settingsmenuoptionpointer)
+	cp 4
+	jr z, smkey1	; at bottom option already, jump to key read section as nothing more to do in joystick section
+	; possible to move down, so increment settingsmenuoptionpointer and arrowxpos
+	xor a
+	ld (arrowcolour),a
+	call drawarrow			; erase old arrow
+	ld a,(settingsmenuoptionpointer)
+	inc a
+	ld (settingsmenuoptionpointer),a
+	ld a,(arrowxpos)
+	inc a
+	ld (arrowxpos),a
+	ld a,2
+	ld (arrowcolour),a
+	call drawarrow
+	call smalldelay
+	jr smkey1	; finished in joystick read section
+
+smjoy6
+	ld bc,31
+	in a,(c)            ; read input.
+	and 16              ; try the fire bit.
+	jr nz,smjoy7	   ; fire pressed.
+	jr smkey1
+smjoy7
+	; fire button pressed
+	ld a,(settingsmenuoptionpointer)
+	cp 1
+	jr nz, smjoy8
+	; the key read routine actually sets all the bits to 1 except the key corresponding to key pressed
+	ld a,29		; 11101
+	ld (settingsmenuoptionchosen),a
+	jr setm24		
+smjoy8
+	cp 2
+	jr nz, smjoy9
+	ld a,27		; 11011
+	ld (settingsmenuoptionchosen),a
+	jr setm24		
+smjoy9
+	cp 3
+	jr nz, smjoy10
+	ld a,23		;10111
+	ld (settingsmenuoptionchosen),a
+	jr setm24		
+smjoy10
+	cp 4
+	jr nz, smjoy11
+	ld a,15		;01111
+	ld (settingsmenuoptionchosen),a
+	jr setm24	
+smjoy11
+	; assume it is difficulty
+	ld a,30		;11110
+	ld (settingsmenuoptionchosen),a
+	jr setm24
+smkey1
+
 	;IN 63486 reads the half row 1 to 5
 	ld bc,63486
 	in a,(c)
+	ld (settingsmenuoptionchosen), a
 
+setm24	
+	ld a, (settingsmenuoptionchosen)
 	bit 0,a		; check for keypress of number 1 - difficulty
 	jr nz,setm4
 	
@@ -733,6 +987,7 @@ setm3
 	jp setm19		
 
 setm4
+	ld a, (settingsmenuoptionchosen)
 	bit 1,a		; check for keypress of number 2 - drop method
 	jr nz,setm7
 	
@@ -766,9 +1021,10 @@ setm23
 	ld hl,msg_menu_dropmethod_normal
 	call print_message
 	call mediumdelay
-	jr setm19	
+	jp setm19	
 	
-setm7	
+setm7
+	ld a, (settingsmenuoptionchosen)
 	bit 2,a		; check for keypress of number 3 - key sensitivity
 	jr nz,setm18
 
@@ -810,12 +1066,14 @@ setm16
 	jr setm19	
 	
 setm18
+	ld a, (settingsmenuoptionchosen)
 	bit 4,a		; check for keypress of number 5 - back to main menu
 	jr nz,setm33
 
 	ret		; back to main menu
 	
 setm33
+	ld a, (settingsmenuoptionchosen)
 	bit 3,a		; check for keypress of number 4 - simultaneous keypress
 	jr nz,setm19
 
@@ -1367,9 +1625,20 @@ drawblock
 	ld a,144            ; ASCII code for User Defined Graphic 'A'.
 	rst 16              ; draw player.
 	ret
-
-
-
+	
+drawarrow
+	ld a,22
+	rst 16
+	ld a,(arrowxpos)			
+	rst 16
+	ld a,3		; arrow y pos always 3
+	rst 16
+	ld a,(arrowcolour)				; arrow colour                                    
+	ld (23695),a        ; set our temporary screen colours.
+	ld a,154            ; ASCII code for User Defined Graphic 'K'.
+	rst 16              ; draw player.
+	ret
+	
 ;erases the current shape. Same as showcurrentshape except
 ;colour is hardcoded to 0 (black). So, this redraws over the current
 ; shape in black, erasing it

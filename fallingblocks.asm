@@ -596,12 +596,10 @@ mmjoy3
 	ld (arrowcolour),a
 	call drawarrow			; erase old arrow
 	
-	ld a,(mainmenuoptionpointer)
-	dec a
-	ld (mainmenuoptionpointer),a
-	ld a,(arrowxpos)
-	dec a
-	ld (arrowxpos),a
+	ld hl,mainmenuoptionpointer
+	dec (hl)
+	ld hl,arrowxpos
+	dec (hl)
 	ld a,2
 	ld (arrowcolour),a
 	call drawarrow
@@ -624,12 +622,10 @@ mmjoy5
 	xor a
 	ld (arrowcolour),a
 	call drawarrow			; erase old arrow
-	ld a,(mainmenuoptionpointer)
-	inc a
-	ld (mainmenuoptionpointer),a
-	ld a,(arrowxpos)
-	inc a
-	ld (arrowxpos),a
+	ld hl,mainmenuoptionpointer
+	inc (hl)
+	ld hl,arrowxpos
+	inc (hl)
 	ld a,2
 	ld (arrowcolour),a
 	call drawarrow
@@ -876,12 +872,10 @@ smjoy3
 	ld (arrowcolour),a
 	call drawarrow			; erase old arrow
 	
-	ld a,(settingsmenuoptionpointer)
-	dec a
-	ld (settingsmenuoptionpointer),a
-	ld a,(arrowxpos)
-	dec a
-	ld (arrowxpos),a
+	ld hl,settingsmenuoptionpointer
+	dec (hl)
+	ld hl, arrowxpos
+	dec (hl)
 	ld a,2
 	ld (arrowcolour),a
 	call drawarrow
@@ -1161,7 +1155,7 @@ main1
 	jr z,nokeypressed
 	jr main2
 nokeypressed	
-	call droppieceiftapped
+	call droppieceiftappedkeyboard
 	xor a
 	ld (keypresscount),a
 	ld (lastkeypressed),a	
@@ -1437,7 +1431,7 @@ joycon
 	or 0
 	jr nz, jc10
 	
-	call droppieceiftapped
+	call droppieceiftappedjoystick
 	xor a
 	ld (lastjoystick),a
 	ld (firebuttoncount),a
@@ -1636,7 +1630,7 @@ drawarrow
 	ld a,(arrowcolour)				; arrow colour                                    
 	ld (23695),a        ; set our temporary screen colours.
 	ld a,154            ; ASCII code for User Defined Graphic 'K'.
-	rst 16              ; draw player.
+	rst 16              ; draw arrow.
 	ret
 	
 ;erases the current shape. Same as showcurrentshape except
@@ -1953,33 +1947,50 @@ ml1
 
 ; this drops the piece when in mixture drop mode and drop key has been tapped
 
-droppieceiftapped
-	; check dropmethod and (lastkeypressed or lastjoystick) and (keypresscount or firebuttoncount)
+droppieceiftappedkeyboard
+	; check dropmethod and lastkeypressed and keypresscount
 	ld a,(dropmethod)
 	cp 2
 	ret nz
 	ld a,(lastkeypressed)
 	bit 2,a	; drop
-	jr dpit1
-	ld a,(lastjoystick)
-	bit 5,a	; drop
-	jr dpit1
+	jr dpitk1
 	ret
-dpit1	
+dpitk1	
 	ld a,(keypresscount)
 	cp 1
-	jr z,dpit2
-	ld a,(firebuttoncount)
-	cp 1
-	jr z,dpit2
+	jr z,dpitk2
 	ret
-dpit2	
+dpitk2	
 	ld a,1
 	ld (fulldropactive),a
 	call droppiece
 	call smalldelay
 	
 	ret
+	
+droppieceiftappedjoystick
+	; check dropmethod and lastjoystick and firebuttoncount
+	ld a,(dropmethod)
+	cp 2
+	ret nz
+	ld a,(lastjoystick)
+	bit 5,a	; drop
+	jr dpitj1
+	ret
+dpitj1	
+	ld a,(firebuttoncount)
+	cp 1
+	jr z,dpitj2
+	ret
+dpitj2	
+	ld a,1
+	ld (fulldropactive),a
+	call droppiece
+	call smalldelay
+	
+	ret	
+	
 	
 ;this drops the piece, either by 1 square or till it cannot go any further
 droppiece
@@ -4011,7 +4022,7 @@ pbl1
 	cp 254
 	jr z,pbl2
 	cp 255
-	jr z,pbl3
+	ret z	; we return from here if a 255 found
 	ld (blockcolour),a
 	call drawblock
 	ld a,(tmpy)
@@ -4028,10 +4039,6 @@ pbl2
 	ld (tmpy),a
 	inc hl
 	jp pbl1
-pbl3	
-	; if here then end of data reached
-	
-	ret
 	
 ; this updates the lines completed area
 printlines

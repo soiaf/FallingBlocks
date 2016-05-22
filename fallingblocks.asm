@@ -898,12 +898,12 @@ smjoy5
 	xor a
 	ld (arrowcolour),a
 	call drawarrow			; erase old arrow
-	ld a,(settingsmenuoptionpointer)
-	inc a
-	ld (settingsmenuoptionpointer),a
-	ld a,(arrowxpos)
-	inc a
-	ld (arrowxpos),a
+	
+	ld hl,settingsmenuoptionpointer
+	inc (hl)
+	ld hl, arrowxpos
+	inc (hl)
+	
 	ld a,2
 	ld (arrowcolour),a
 	call drawarrow
@@ -2064,6 +2064,12 @@ dpo1
 
 	call showcurrentshape
 	call showghostshape
+	
+	; reset the automatic drop timing - we do this as otherwise we would get occasional piece dropping
+	; down 2 spaces
+	ld hl,pretim
+	ld a,(23672) 
+	ld (hl),a 
 	
 	ret	
 	
@@ -3804,7 +3810,7 @@ uscor0
 	ret c               ; no, scoring done.
 	sub 10              ; down by ten.
 	ld (hl),a           ; put it back
-	jp uscor0           ; go round again.
+	jr uscor0           ; go round again.
 	
 ; Print the score
 printscore

@@ -1,0 +1,7 @@
+T: Falling Blocks
+F: fallingblocks.tap
+M: 48
+# key mapping has following order
+#start sequence; up; down; left; right; fire; select; 1; 2; A; B ; C;
+K:1;H;SP;O;P;G;1;S;D;2;3;4;
+D:;Clockwise Rotate;Anticlockwise Rotate;Left;Right;Ghost Mode;Start Game (1);Swap;Drop;2;3;4;

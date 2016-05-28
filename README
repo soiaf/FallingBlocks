@@ -23,12 +23,12 @@ can swap a piece in play for later usage).
 It is possible to define your own keys for use in the game, but the default 
 keys are as follows:
 
-O		-	move left
-P		-	move right
-Space	-	rotate piece
-D 		-	Drop piece
-G		-	enable/disable ghost mode
-S		-	Swap/Save a piece for later usage
+O       -	move left
+P       -	move right
+Space   -	rotate piece
+D       -	Drop piece
+G       -	enable/disable ghost mode
+S       -	Swap/Save a piece for later usage
 
 You are able to modify the behaviour of the 'Drop piece' key in the settings menu
 off the main menu. The three possible options are
@@ -40,5 +40,9 @@ While Held - This will cause the piece to drop as long as the drop key is presse
 Mixture - If you quickly press/tap the drop key, the piece will fall down the screen
 as far as possible, however holding the drop key will drop the piece as long as the 
 drop key is pressed - therefore a mixture of 'Full' and 'While Held'
+
+A ZXK file is available which provides keyboard mapping for the ZX Spectrum Vega.
+If using this Vega keyboard mapping please do not enable kempston joystick in the game 
+menu as this will interfere with the keyboard mappings.
 
 Please direct any questions or comments to beatofthedrum@gmail.com

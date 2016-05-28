@@ -9,7 +9,6 @@
 ; 
 ; 
 
-
 org 24576
 	; set up our own routines. Two elements, a table that points to where the interrupt code is
 	; held and the actual interrupt code itself. Due to the strange way interrupts work on spectrum

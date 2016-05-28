@@ -308,7 +308,7 @@ ghostactive	defb	0
 ; issues if activated when, say, emulator is not set to support it.
 ; 0 - disabled, 1 - enabled, 2 - not available
 
-kemsptonactivated	defb	1
+kemsptonactivated	defb	0
 
 ; this holds the difficulty level, 0 is normal, 1 is hard
 
